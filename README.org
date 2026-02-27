@@ -1,5 +1,7 @@
-# Xtream Codes Proxy
+* Xtream Codes Proxy
 
 This script proxy request to an external xtream codes server and filter results based on whitelist and blacklist.
 
-It creates a local server to allow internal users fetch filtered streams. The only API endpoint supported is: /player_api.php
+It creates a local server to allow internal users fetch filtered streams.
+
+The only API endpoint supported is: /player_api.php
