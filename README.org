@@ -5,3 +5,30 @@ This script proxy request to an external xtream codes server and filter results 
 It creates a local server to allow internal users fetch filtered streams.
 
 The only API endpoint supported is: /player_api.php
+
+About lists formats:
+- Whitelist and blacklist are matched againt stream names.
+- Whitelist-category is matches againts category_id.
+
+** Configuration file example
+This is a format for the configuration file.
+
+# Filename: xtream_proxy.conf
+[xtream-remote]
+server = http://remote-server:8080
+user = someuser
+pass = somepass
+
+[whitelist]
+Cars
+Deporte
+Sport
+Espn
+
+[blacklist]
+Adult
+
+[whitelist-category]
+188
+163
+
