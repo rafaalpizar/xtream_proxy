@@ -1,2 +1,4 @@
 .venv
 xtream_proxy.conf
+*~
+__pycache__
