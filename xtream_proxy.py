@@ -122,7 +122,7 @@ def refresh_cache():
 
     # Streams must be loaded first in order to update: whitelist_category_updated
     CACHE["get_live_streams"] = filter_streams(fetch_external("get_live_streams"))
-    CACHE["get_series_streams"] = filter_streams(fetch_external("get_series"))
+    CACHE["get_series"] = filter_streams(fetch_external("get_series"))
     CACHE["get_vod_streams"] = filter_streams(fetch_external("get_vod_streams"))
     # Fetch categories and filter based on allowed streams
     CACHE["get_live_categories"] = filter_categories(fetch_external("get_live_categories"))
