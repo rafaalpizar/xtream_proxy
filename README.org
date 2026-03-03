@@ -47,3 +47,14 @@ Adult
 188
 163
 
+
+** Docker
+*** Build
+docker build -t iptv .
+
+*** Debug
+# when run the app, it must be mounted the configuration file
+docker run --rm -it -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv bash
+
+*** Run
+docker run -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv
