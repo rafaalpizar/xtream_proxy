@@ -40,7 +40,7 @@ app = Flask(__name__)
 
 def fetch_external(action=None, extra_params=None):
     """Fetch data from external Xtream Codes server."""
-    headers = {"User-Agent": "okhttp/3.14.17"}
+    headers = {"User-Agent": "okhttp/3.14.7"}
     params = {"username": USERNAME, "password": PASSWORD}
     if action:
         params["action"] = action
