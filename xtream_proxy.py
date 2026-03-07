@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 import os
 import time
 import requests
@@ -17,6 +17,7 @@ config.read("xtream_proxy.conf")
 EXTERNAL_SERVER = config.get("xtream-remote", "server", fallback="http://remote-server:8080")
 USERNAME = config.get("xtream-remote", "user", fallback="user")
 PASSWORD = config.get("xtream-remote", "pass", fallback="pass")
+USERAGENT = config.get("xtream-remote", "user-agent", fallback="okhttp/3.14.17")
 
 def read_list_section(section_name):
     """Read a section as a list of values (one per line)."""
@@ -40,7 +41,7 @@ app = Flask(__name__)
 
 def fetch_external(action=None, extra_params=None):
     """Fetch data from external Xtream Codes server."""
-    headers = {"User-Agent": "okhttp/3.14.7"}
+    headers = {"User-Agent": USERAGENT}
     params = {"username": USERNAME, "password": PASSWORD}
     if action:
         params["action"] = action
@@ -133,36 +134,44 @@ def refresh_cache():
 
     logger.info("Whitelist Category (Updated): %s", WHITELIST_CATEGORY)
 
+def get_noncacheable_action(args):
+    """
+    Params:
+    args -- http request querystrings
+    """
+    action = args.get("action")
+    asset = action.split("_")[1]
+    if asset == "simple":
+        asset_str = "get_simple_data_table"
+        asset_id = args.get("stream_id")
+    else:
+        asset_str = f"get_{asset}_info"
+        asset_id = args.get(f"{asset}_id")
+    return fetch_external(action, {asset_srt: asset_id})
+
+def get_action(args):
+    """
+    Params:
+    args -- http request querystrings
+    """
+    non_cacheable_actions = ["get_series_info",
+                            "get_vod_info",
+                            "get_simple_data_table"]
+
+    refresh_cache()
+    action = args.get("action")
+
+    if action in non_cacheable_actions:
+        return get_noncacheable_action(args)
+    if not action:
+        return CACHE.get("server_info", {})
+
+    return CACHE.get(action, [])
+
 @app.route("/player_api.php")
 def local_api():
     """Proxy API with filtering and caching."""
-    refresh_cache()
-
-    action = request.args.get("action")
-
-    # series info cannot be cacheable because depends on series_id parameter
-    if action == "get_series_info":
-        series_id = request.args.get("series_id")
-        data = fetch_external("get_series_info", {"series_id": series_id})
-        return jsonify(data)
-
-    # vod info
-    if action == "get_vod_info":
-        vod_id = request.args.get("vod_id")
-        data = fetch_external("get_vod_info", {"vod_id": vod_id})
-        return jsonify(data)
-
-    # live EPG data
-    if action == "get_simple_data_table":
-        stream_id = request.args.get("stream_id")
-        data = fetch_external("get_simple_data_table", {"stream_id": stream_id})
-        return jsonify(data)
-
-    if not action:
-        return jsonify(CACHE.get("server_info", {}))
-
-    return jsonify(CACHE.get(action, []))
-
+    return jsonify(get_action(request.args))
 
 @app.route("/<asset>/<user>/<passwd>/<name>")
 def redirect_external_server(asset=None, user=None, passwd=None, name=None):
