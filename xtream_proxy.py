@@ -34,7 +34,7 @@ whitelist_category_updated = [x for x in WHITELIST_CATEGORY]
 
 # Cache storage
 CACHE = {}
-LAST_REFRESH = 0
+LAST_REFRESH = {}
 REFRESH_INTERVAL = 24 * 3600  # once per day
 
 app = Flask(__name__)
@@ -105,34 +105,51 @@ def filter_categories(categories):
     logger.info("Filter done. Added:%d Removed:%d", add_count, remove_count)
     return filtered
 
-def refresh_cache():
+def refresh_cache(action):
     """Refresh cache once per day."""
+    stream_actions = ["get_live_streams", "get_vod_streams", "get_series"]
+    category_actions = ["get_live_categories", "get_vod_categories", "get_series_categores"]
+    category_streams = dict(zip(category_actions, stream_actions))
+
     global LAST_REFRESH, CACHE
     now = time.time()
-    if now - LAST_REFRESH < REFRESH_INTERVAL:
+
+    # if invalid action
+    if action not in stream_actions + category_actions:
+        # action not supported
         return
 
-    CACHE["server_info"] = fetch_external()
-    # override some server info
-    try:
-        CACHE["server_info"]["user_info"]["username"] = "-"
-        CACHE["server_info"]["user_info"]["password"] = "-"
-        CACHE["server_info"]["server_info"]["url"] = "-"
-    except:
-        logger.error("Server information from external is malformed")
+    # no action maps to server_info
+    if not action:
+        action = "server_info"
 
-    # Streams must be loaded first in order to update: whitelist_category_updated
-    CACHE["get_live_streams"] = filter_streams(fetch_external("get_live_streams"))
-    CACHE["get_series"] = filter_streams(fetch_external("get_series"))
-    CACHE["get_vod_streams"] = filter_streams(fetch_external("get_vod_streams"))
-    # Fetch categories and filter based on allowed streams
-    CACHE["get_live_categories"] = filter_categories(fetch_external("get_live_categories"))
-    CACHE["get_series_categories"] = filter_categories(fetch_external("get_series_categories"))
-    CACHE["get_vod_categories"] = filter_categories(fetch_external("get_vod_categories"))
+    # get last refresh time per action
+    action_last_refresh = LAST_REFRESH.get(action, 0)
+    if now - action_last_refresh < REFRESH_INTERVAL:
+        # no need to refresh cache
+        return
 
-    LAST_REFRESH = now
+    if action == "server_info":
+        CACHE["server_info"] = fetch_external()
+        # override some server info
+        try:
+            CACHE["server_info"]["user_info"]["username"] = "-"
+            CACHE["server_info"]["user_info"]["password"] = "-"
+            CACHE["server_info"]["server_info"]["url"] = "-"
+        except:
+            logger.error("Server information from external is malformed")
+    elif action in stream_actions:
+        CACHE[action] = filter_streams(fetch_external(action))
+    else:
+        # if a category is requested: first must be loaded the streams
+        stream_to_refresh = category_streams[action]
+        if now - LAST_REFRESH.get(stream_to_refresh, 0) > REFRESH_INTERVAL:
+            # TTL has expired
+            CACHE[stream_to_refresh] = filter_streams(fetch_external(stream_to_refresh))
+        # refresh the category
+        CACHE[action] = filter_categories(fetch_external(action))
 
-    logger.info("Whitelist Category (Updated): %s", WHITELIST_CATEGORY)
+    LAST_REFRESH[action] = now
 
 def get_noncacheable_action(args):
     """
@@ -158,8 +175,8 @@ def get_action(args):
                             "get_vod_info",
                             "get_simple_data_table"]
 
-    refresh_cache()
     action = args.get("action")
+    refresh_cache(action)
 
     if action in non_cacheable_actions:
         return get_noncacheable_action(args)
