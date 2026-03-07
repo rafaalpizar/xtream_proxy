@@ -1,6 +1,7 @@
 * Xtream Codes Proxy
 
-This script proxy request to an external xtream codes server and filter results based on whitelist and blacklist.
+This script proxy request to an external xtream codes server and
+filter results based on whitelist and blacklist.
 
 It creates a local server to allow internal users fetch filtered streams.
 
@@ -33,6 +34,7 @@ The sections are:
 server = http://remote-server:8080
 user = someuser
 pass = somepass
+user-agent = UA-string
 
 [whitelist]
 Cars
@@ -58,3 +60,10 @@ docker run --rm -it -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.co
 
 *** Run
 docker run -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv
+
+** Testing
+curl -k https://127.0.0.1:9090/player_api.php
+curl -k "https://127.0.0.1:9090/player_api.php?action=get_vod_categories"
+curl -k "https://127.0.0.1:9090/player_api.php?action=get_vod_streams"
+
+
