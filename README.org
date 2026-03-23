@@ -55,11 +55,16 @@ Adult
 docker build -t iptv .
 
 *** Debug
+#+begin_src bash
 # when run the app, it must be mounted the configuration file
 docker run --rm -it -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv bash
+gunicorn --keyfile privkey.pem --certfile cert.pem -b:9090 xtream_proxy:app
+#+end_src
 
 *** Run
+#+begin_src bash
 docker run -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv
+#+end_src
 
 ** Testing
 curl -k https://127.0.0.1:9090/player_api.php
