@@ -14,7 +14,7 @@ RUN openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout privkey.pem -ou
 	-subj "/C=US/ST=Oregon/L=Bend/O=xap/OU=ipv/CN=ipv/emailAddress=ipv@test.net";
 
 # Install main program
-COPY xtream_proxy.py .
+COPY gunicorn.conf.py xtream_proxy.py ./
 
 # mount xtream_proxy.conf -v xtream_proxy.conf:/app/xtream_proxy.conf
 
@@ -23,5 +23,5 @@ EXPOSE 9090
 
 # Run Flask app with Gunicorn
 CMD ["gunicorn", \
-    "-b", "0.0.0.0:9090", \
+    "--config", "gunicorn.conf.py", \
     "xtream_proxy:app"]

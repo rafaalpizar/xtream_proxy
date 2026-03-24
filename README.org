@@ -56,14 +56,31 @@ docker build -t iptv .
 
 *** Debug
 #+begin_src bash
-# when run the app, it must be mounted the configuration file
-docker run --rm -it -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv bash
+  # when run the app, it must be mounted the configuration file
+mkdir logs
+docker run \
+  --rm \
+  -it \
+  --net host \
+  -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf \
+  -v `pwd`/logs:/app/logs \
+  --name iptv \
+  iptv bash
+
 gunicorn --keyfile privkey.pem --certfile cert.pem -b:9090 xtream_proxy:app
 #+end_src
 
 *** Run
 #+begin_src bash
-docker run -p 9090:9090 -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf iptv
+mkdir logs
+docker run \
+  -d \
+  --restart always \
+  --net host \
+  -v `pwd`/xtream_proxy.conf:/app/xtream_proxy.conf \
+  -v `pwd`/logs:/app/logs \
+  --name iptv \
+  iptv
 #+end_src
 
 ** Testing
