@@ -107,46 +107,55 @@ def filter_categories(categories):
 
 def refresh_cache(action):
     """Refresh cache once per day."""
-    stream_actions = ["get_live_streams", "get_vod_streams", "get_series"]
-    category_actions = ["get_live_categories", "get_vod_categories", "get_series_categores"]
+    stream_actions = ["get_live_streams", "get_vod_streams", "get_series", "server_info"]
+    category_actions = ["get_live_categories", "get_vod_categories", "get_series_categories"]
     category_streams = dict(zip(category_actions, stream_actions))
 
     global LAST_REFRESH, CACHE
     now = time.time()
-
-    # if invalid action
-    if action not in stream_actions + category_actions:
-        # action not supported
-        return
+    logger.debug("Check cache")
 
     # no action maps to server_info
     if not action:
         action = "server_info"
 
+    # if invalid action
+    if action not in stream_actions + category_actions:
+        # action not supported
+        logger.debug("Action not supported")
+        return
+
     # get last refresh time per action
     action_last_refresh = LAST_REFRESH.get(action, 0)
     if now - action_last_refresh < REFRESH_INTERVAL:
         # no need to refresh cache
+        logger.debug("Cache is fresh, update not needed.")
         return
-
+    logger.debug("Cache stale, update is needed.")
     if action == "server_info":
-        CACHE["server_info"] = fetch_external()
+        logger.debug("Get server info")
+        CACHE[action] = fetch_external()
         # override some server info
         try:
-            CACHE["server_info"]["user_info"]["username"] = "-"
-            CACHE["server_info"]["user_info"]["password"] = "-"
-            CACHE["server_info"]["server_info"]["url"] = "-"
+            CACHE[action]["user_info"]["username"] = "-"
+            CACHE[action]["user_info"]["password"] = "-"
+            CACHE[action]["user_info"]["message"] = "-"
+            CACHE[action]["server_info"]["url"] = "-"
+            CACHE[action]["server_info"]["port"] = "-"
         except:
             logger.error("Server information from external is malformed")
     elif action in stream_actions:
+        logger.debug("Get stream list: %s", action)
         CACHE[action] = filter_streams(fetch_external(action))
     else:
         # if a category is requested: first must be loaded the streams
         stream_to_refresh = category_streams[action]
         if now - LAST_REFRESH.get(stream_to_refresh, 0) > REFRESH_INTERVAL:
             # TTL has expired
+            logger.debug("Stream list cache is stale, refreshing: %s", stream_to_refresh)
             CACHE[stream_to_refresh] = filter_streams(fetch_external(stream_to_refresh))
         # refresh the category
+        logger.debug("Get category list: %s", action)
         CACHE[action] = filter_categories(fetch_external(action))
 
     LAST_REFRESH[action] = now
@@ -159,30 +168,29 @@ def get_noncacheable_action(args):
     action = args.get("action")
     asset = action.split("_")[1]
     if asset == "simple":
-        asset_str = "get_simple_data_table"
-        asset_id = args.get("stream_id")
+        asset_str = "stream_id"
     else:
-        asset_str = f"get_{asset}_info"
-        asset_id = args.get(f"{asset}_id")
-    return fetch_external(action, {asset_srt: asset_id})
+        asset_str = f"{asset}_id"
+    asset_id = args.get(asset_str)
+    return fetch_external(action, {asset_str: asset_id})
 
 def get_action(args):
     """
     Params:
-    args -- http request querystrings
+    args -- http request querystring
     """
     non_cacheable_actions = ["get_series_info",
                             "get_vod_info",
                             "get_simple_data_table"]
 
     action = args.get("action")
-    refresh_cache(action)
 
     if action in non_cacheable_actions:
         return get_noncacheable_action(args)
     if not action:
-        return CACHE.get("server_info", {})
+        action = "server_info"
 
+    refresh_cache(action)
     return CACHE.get(action, [])
 
 @app.route("/player_api.php")

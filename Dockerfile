@@ -23,7 +23,5 @@ EXPOSE 9090
 
 # Run Flask app with Gunicorn
 CMD ["gunicorn", \
-    "--keyfile", "privkey.pem", \
-    "--certfile", "cert.pem", \
     "-b", "0.0.0.0:9090", \
     "xtream_proxy:app"]
