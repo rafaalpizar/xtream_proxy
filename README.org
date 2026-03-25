@@ -58,6 +58,9 @@ Adult
 Docker image needs to map configuration file to /app/xtream_proxy.conf and
 logs directory to /app/logs.
 
+Internaly application will run with user tvuser:tvuser, logs directory needs to be
+writable by any.
+
 *** Build
 docker build -t iptv .
 
