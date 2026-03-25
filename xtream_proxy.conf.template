@@ -1,7 +1,12 @@
+[server]
+loglevel = info
+logfile = logs/xtream_proxy.log
+
 [xtream-remote]
 server = http://remote-server:8080
 user = someuser
 pass = somepass
+user-agent = UA-string
 
 [whitelist]
 Cars

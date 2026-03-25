@@ -1,4 +1,4 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 import os
 import time
 import requests
@@ -6,14 +6,23 @@ import configparser
 import logging
 from flask import Flask, request, jsonify, redirect
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger()
-
 # --- Configuration loading ---
 config = configparser.ConfigParser(allow_no_value=True)
 #config.optionxform = str  # preserve case, don't lowercase keys
 config.read("xtream_proxy.conf")
 
+# Defining logger
+LOGLEVEL = config.get("server", "loglevel", fallback="info")
+LOGFILE = config.get("server", "logfile", fallback="xtream_proxy.log")
+FORMAT = '%(asctime)s:%(name)s:%(message)s'
+log_level = {"debug": logging.DEBUG,
+             "info": logging.INFO,
+             "warning": logging.WARNING,
+             "error": logging.ERROR}[LOGLEVEL]
+logging.basicConfig(format=FORMAT, filename=LOGFILE, level=log_level)
+logger = logging.getLogger()
+
+# Setup external xtream codes server settings
 EXTERNAL_SERVER = config.get("xtream-remote", "server", fallback="http://remote-server:8080")
 USERNAME = config.get("xtream-remote", "user", fallback="user")
 PASSWORD = config.get("xtream-remote", "pass", fallback="pass")
@@ -49,7 +58,7 @@ def fetch_external(action=None, extra_params=None):
         action = "server_info"  # for logging purposes
     if extra_params:
         params.update(extra_params)
-    logger.info("Downloading action: %s", action)
+        logger.info("Download: %s", action)
     resp = requests.get(f"{EXTERNAL_SERVER}/player_api.php", headers=headers, params=params, timeout=10)
     resp.raise_for_status()
     return resp.json()
@@ -85,7 +94,7 @@ def filter_streams(streams):
         filtered.append(s)
         # add category is to good list
         whitelist_category_updated.append(category_id)
-    logger.info("Filter done. Added:%d Removed:%d", add_count, remove_count)
+    logger.debug("Stream filter done. Added:%d Removed:%d", add_count, remove_count)
     return filtered
 
 def filter_categories(categories):
@@ -102,7 +111,7 @@ def filter_categories(categories):
 
         add_count += 1
         filtered.append(c)
-    logger.info("Filter done. Added:%d Removed:%d", add_count, remove_count)
+    logger.debug("Category filter done. Added:%d Removed:%d", add_count, remove_count)
     return filtered
 
 def refresh_cache(action):
@@ -113,7 +122,7 @@ def refresh_cache(action):
 
     global LAST_REFRESH, CACHE
     now = time.time()
-    logger.debug("Check cache")
+    logger.info("Check cache")
 
     # no action maps to server_info
     if not action:
@@ -122,16 +131,16 @@ def refresh_cache(action):
     # if invalid action
     if action not in stream_actions + category_actions:
         # action not supported
-        logger.debug("Action not supported")
+        logger.error("Action not supported")
         return
 
     # get last refresh time per action
     action_last_refresh = LAST_REFRESH.get(action, 0)
     if now - action_last_refresh < REFRESH_INTERVAL:
         # no need to refresh cache
-        logger.debug("Cache is fresh, update not needed.")
+        logger.info("Cache is fresh, update not needed.")
         return
-    logger.debug("Cache stale, update is needed.")
+    logger.info("Cache stale, update is needed.")
     if action == "server_info":
         logger.debug("Get server info")
         CACHE[action] = fetch_external()
@@ -143,7 +152,7 @@ def refresh_cache(action):
             CACHE[action]["server_info"]["url"] = "-"
             CACHE[action]["server_info"]["port"] = "-"
         except:
-            logger.error("Server information from external is malformed")
+            logger.error("Exeternal server information is malformed")
     elif action in stream_actions:
         logger.debug("Get stream list: %s", action)
         CACHE[action] = filter_streams(fetch_external(action))
@@ -154,7 +163,7 @@ def refresh_cache(action):
             # TTL has expired
             logger.debug("Stream list cache is stale, refreshing: %s", stream_to_refresh)
             CACHE[stream_to_refresh] = filter_streams(fetch_external(stream_to_refresh))
-        # refresh the category
+            # refresh the category
         logger.debug("Get category list: %s", action)
         CACHE[action] = filter_categories(fetch_external(action))
 
@@ -180,8 +189,8 @@ def get_action(args):
     args -- http request querystring
     """
     non_cacheable_actions = ["get_series_info",
-                            "get_vod_info",
-                            "get_simple_data_table"]
+                             "get_vod_info",
+                             "get_simple_data_table"]
 
     action = args.get("action")
 
@@ -205,9 +214,9 @@ def redirect_external_server(asset=None, user=None, passwd=None, name=None):
     location = f"{EXTERNAL_SERVER}/{asset}/{USERNAME}/{PASSWORD}/{name}"
     logger.info("Redirecting to: %s", location)
     return redirect(location, code=307)
-    
+
 if __name__ == "__main__":
-    logger.info("Whitelist: %s", WHITELIST)
-    logger.info("Blacklist: %s", BLACKLIST)
-    logger.info("Whitelist Category: %s", WHITELIST_CATEGORY)
+    logger.debug("Whitelist: %s", WHITELIST)
+    logger.debug("Blacklist: %s", BLACKLIST)
+    logger.debug("Whitelist Category: %s", WHITELIST_CATEGORY)
     app.run(host="0.0.0.0", port=8000)

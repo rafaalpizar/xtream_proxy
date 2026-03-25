@@ -1,5 +1,4 @@
 * Xtream Codes Proxy
-
 This script proxy request to an external xtream codes server and
 filter results based on whitelist and blacklist.
 
@@ -18,18 +17,23 @@ The configuration file is formated in sections like "ini" a file. The repo provi
 to use must be renamed from xtream_proxy.conf.template to xtream_proxy.conf.
 
 The sections are:
-1. xtream-remote : information about remote xtream codes server
+1. Server: Setting about server itself.
+2. xtream-remote : information about remote xtream codes server
    - server: remote server url scheme://host:port
    - user: remote server username
    - pass: remote server password
-2. whitelist : allowed streams
+3. whitelist : allowed streams
    - one string per line
-3. blacklist : blocked streams
+4. blacklist : blocked streams
    - one string per line
-4. whitelist-category: entired category allowed
+5. whitelist-category: entired category allowed
    - one number per line
     
 *** Example: xtream_proxy.conf
+[server]
+loglevel = info
+logfile = logs/xtream_proxy.log
+
 [xtream-remote]
 server = http://remote-server:8080
 user = someuser
@@ -51,6 +55,9 @@ Adult
 
 
 ** Docker
+Docker image needs to map configuration file to /app/xtream_proxy.conf and
+logs directory to /app/logs.
+
 *** Build
 docker build -t iptv .
 
