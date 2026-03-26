@@ -122,7 +122,6 @@ def refresh_cache(action):
 
     global LAST_REFRESH, CACHE
     now = time.time()
-    logger.info("Check cache")
 
     # no action maps to server_info
     if not action:
@@ -131,16 +130,16 @@ def refresh_cache(action):
     # if invalid action
     if action not in stream_actions + category_actions:
         # action not supported
-        logger.error("Action not supported")
+        logger.error("Action %s is not supported", action)
         return
 
     # get last refresh time per action
     action_last_refresh = LAST_REFRESH.get(action, 0)
     if now - action_last_refresh < REFRESH_INTERVAL:
         # no need to refresh cache
-        logger.info("Cache is fresh, update not needed.")
+        logger.info("Cache for action %s is fresh, update not needed.", action)
         return
-    logger.info("Cache stale, update is needed.")
+    logger.info("Cache for action %s is stale, update is needed.", action)
     if action == "server_info":
         logger.debug("Get server info")
         CACHE[action] = fetch_external()

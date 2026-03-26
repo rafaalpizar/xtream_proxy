@@ -25,6 +25,10 @@ USER tvuser
 
 # mount xtream_proxy.conf -v xtream_proxy.conf:/app/xtream_proxy.conf
 
+# create internal logs - mounted to be external
+RUN mkdir logs
+
+
 # Expose internal port for Gunicorn
 EXPOSE 9090
 
