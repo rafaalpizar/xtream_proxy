@@ -3,7 +3,9 @@ loglevel = info
 logfile = logs/xtream_proxy.log
 
 [xtream-remote]
-server = http://remote-server:8080
+scheme = http
+host = remote-server.com
+port = 8080
 user = someuser
 pass = somepass
 user-agent = UA-string

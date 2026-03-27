@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import socket
 import time
 import requests
 import configparser
@@ -23,7 +24,12 @@ logging.basicConfig(format=FORMAT, filename=LOGFILE, level=log_level)
 logger = logging.getLogger()
 
 # Setup external xtream codes server settings
-EXTERNAL_SERVER = config.get("xtream-remote", "server", fallback="http://remote-server:8080")
+EXT_SCHEME = config.get("xtream-remote", "scheme", fallback="http")
+EXT_HOST = config.get("xtream-remote", "host", fallback="remote-server")
+EXT_PORT = config.get("xtream-remote", "port", fallback="1234")
+
+EXTERNAL_SERVER = f"{EXT_SCHEME}://{EXT_HOST}:{EXT_PORT}"
+
 USERNAME = config.get("xtream-remote", "user", fallback="user")
 PASSWORD = config.get("xtream-remote", "pass", fallback="pass")
 USERAGENT = config.get("xtream-remote", "user-agent", fallback="okhttp/3.14.17")
@@ -45,6 +51,10 @@ whitelist_category_updated = [x for x in WHITELIST_CATEGORY]
 CACHE = {}
 LAST_REFRESH = {}
 REFRESH_INTERVAL = 24 * 3600  # once per day
+
+# Remote rtmp port
+# not used so far
+remote_rtmp_port = 8881
 
 app = Flask(__name__)
 
@@ -121,6 +131,7 @@ def refresh_cache(action):
     category_streams = dict(zip(category_actions, stream_actions))
 
     global LAST_REFRESH, CACHE
+    global remote_rtmp_port
     now = time.time()
 
     # no action maps to server_info
@@ -148,8 +159,10 @@ def refresh_cache(action):
             CACHE[action]["user_info"]["username"] = "-"
             CACHE[action]["user_info"]["password"] = "-"
             CACHE[action]["user_info"]["message"] = "-"
-            CACHE[action]["server_info"]["url"] = "-"
-            CACHE[action]["server_info"]["port"] = "-"
+            CACHE[action]["server_info"]["url"] = socket.gethostname()
+            remote_rtmp_port = CACHE[action]["server_info"].get("rtmp_port", 0)
+            CACHE[action]["server_info"]["port"] = 9090 # this must match gunicorn listen port, TODO: read from config file
+            CACHE[action]["server_info"]["rtmp_port"] = 9090 # this must match gunicorn listen port, TODO: read from config file
         except:
             logger.error("Exeternal server information is malformed")
     elif action in stream_actions:
@@ -207,10 +220,23 @@ def local_api():
     return jsonify(get_action(request.args))
 
 @app.route("/<asset>/<user>/<passwd>/<name>")
-def redirect_external_server(asset=None, user=None, passwd=None, name=None):
+@app.route("/<user>/<passwd>/<name>")
+def redirect_external_server_asset(asset=None, user=None, passwd=None, name=None):
     # Rediret stream request to external server directly
     # Incoming user and passwd are discarded
-    location = f"{EXTERNAL_SERVER}/{asset}/{USERNAME}/{PASSWORD}/{name}"
+    if not asset:
+        location = f"{EXTERNAL_SERVER}/{USERNAME}/{PASSWORD}/{name}"
+    else:
+        location = f"{EXTERNAL_SERVER}/{asset}/{USERNAME}/{PASSWORD}/{name}"
+    logger.info("Redirecting to: %s", location)
+    return redirect(location, code=307)
+
+@app.route("/<asset>/<user>/<passwd>/<name>.rtmp")
+def redirect_external_server_name(asset=None, user=None, passwd=None, name=None):
+    # Rediret stream request to external server directly
+    # Incoming user and passwd are discarded
+    external_server = f"{EXT_SCHEME}://{EXT_HOST}:{remote_rtmp_port}"
+    location = f"{external_server}/{USERNAME}/{PASSWORD}/{name}"
     logger.info("Redirecting to: %s", location)
     return redirect(location, code=307)
 
@@ -218,4 +244,4 @@ if __name__ == "__main__":
     logger.debug("Whitelist: %s", WHITELIST)
     logger.debug("Blacklist: %s", BLACKLIST)
     logger.debug("Whitelist Category: %s", WHITELIST_CATEGORY)
-    app.run(host="0.0.0.0", port=8000)
+#    app.run(host="0.0.0.0", port=9090)
