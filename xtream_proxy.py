@@ -58,9 +58,10 @@ remote_rtmp_port = 8881
 
 app = Flask(__name__)
 
-def fetch_external(action=None, extra_params=None):
+def fetch_external(action=None, extra_params=None, headers=None):
     """Fetch data from external Xtream Codes server."""
-    headers = {"User-Agent": USERAGENT}
+    if not headers:
+        headers = {"User-Agent": USERAGENT}
     params = {"username": USERNAME, "password": PASSWORD}
     if action:
         params["action"] = action
@@ -124,7 +125,7 @@ def filter_categories(categories):
     logger.debug("Category filter done. Added:%d Removed:%d", add_count, remove_count)
     return filtered
 
-def refresh_cache(action):
+def refresh_cache(action, headers=None):
     """Refresh cache once per day."""
     stream_actions = ["get_live_streams", "get_vod_streams", "get_series", "server_info"]
     category_actions = ["get_live_categories", "get_vod_categories", "get_series_categories"]
@@ -153,7 +154,7 @@ def refresh_cache(action):
     logger.info("Cache for action %s is stale, update is needed.", action)
     if action == "server_info":
         logger.debug("Get server info")
-        CACHE[action] = fetch_external()
+        CACHE[action] = fetch_external(headers=headers)
         # override some server info
         try:
             CACHE[action]["user_info"]["username"] = "-"
@@ -167,21 +168,21 @@ def refresh_cache(action):
             logger.error("Exeternal server information is malformed")
     elif action in stream_actions:
         logger.debug("Get stream list: %s", action)
-        CACHE[action] = filter_streams(fetch_external(action))
+        CACHE[action] = filter_streams(fetch_external(action, headers=headers))
     else:
         # if a category is requested: first must be loaded the streams
         stream_to_refresh = category_streams[action]
         if now - LAST_REFRESH.get(stream_to_refresh, 0) > REFRESH_INTERVAL:
             # TTL has expired
             logger.debug("Stream list cache is stale, refreshing: %s", stream_to_refresh)
-            CACHE[stream_to_refresh] = filter_streams(fetch_external(stream_to_refresh))
+            CACHE[stream_to_refresh] = filter_streams(fetch_external(stream_to_refresh, headers=headers))
             # refresh the category
         logger.debug("Get category list: %s", action)
-        CACHE[action] = filter_categories(fetch_external(action))
+        CACHE[action] = filter_categories(fetch_external(action,headers=headers))
 
     LAST_REFRESH[action] = now
 
-def get_noncacheable_action(args):
+def get_noncacheable_action(args, headers=None):
     """
     Params:
     args -- http request querystrings
@@ -193,9 +194,9 @@ def get_noncacheable_action(args):
     else:
         asset_str = f"{asset}_id"
     asset_id = args.get(asset_str)
-    return fetch_external(action, {asset_str: asset_id})
+    return fetch_external(action, {asset_str: asset_id}, headers=headers)
 
-def get_action(args):
+def get_action(args, headers=None):
     """
     Params:
     args -- http request querystring
@@ -207,17 +208,18 @@ def get_action(args):
     action = args.get("action")
 
     if action in non_cacheable_actions:
-        return get_noncacheable_action(args)
+        return get_noncacheable_action(args, headers=headers)
     if not action:
         action = "server_info"
 
-    refresh_cache(action)
+    refresh_cache(action, headers=headers)
     return CACHE.get(action, [])
 
 @app.route("/player_api.php")
 def local_api():
     """Proxy API with filtering and caching."""
-    return jsonify(get_action(request.args))
+    req_headers = dict(request.headers)
+    return jsonify(get_action(request.args, headers=req_headers))
 
 @app.route("/<asset>/<user>/<passwd>/<name>")
 @app.route("/<user>/<passwd>/<name>")
