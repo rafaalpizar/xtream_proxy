@@ -219,6 +219,7 @@ def get_action(args, headers=None):
 def local_api():
     """Proxy API with filtering and caching."""
     req_headers = dict(request.headers)
+    del(req_headers["Host"])
     return jsonify(get_action(request.args, headers=req_headers))
 
 @app.route("/<asset>/<user>/<passwd>/<name>")
